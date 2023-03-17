@@ -135,4 +135,4 @@ client.on('messageCreate', msg => {
     }
   });
 
-client.login('MTA4MzE1NzEzOTQwMjUyMjc1NQ.G97V5K.kHnuobFiQKVR4fv_RqLW7tGEf2-oL5vbdkltvk');
+client.login('token');
