@@ -85,13 +85,31 @@ client.on('messageCreate', msg => {
         } else {
           msg.reply('You do not have permission to use this command.');
         }
-      } else if (msg.content === '!!help') {
+
+      } else if (msg.content === '!!skip') {
+        if (msg.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+          if (queue.length >= 2) {
+            const userToSkip = client.users.cache.get(queue[1]);
+            queue.splice(1, 1);
+            queue.splice(2, 0, userToSkip.id);
+            msg.reply(`${userToSkip.username} has been skipped.`);
+            matchCreated = false;
+          } else {
+            msg.reply('There are not enough people in the queue to use this command.');
+          }
+        } else {
+          msg.reply('You do not have permission to use this command.');
+        }
+      }
+
+       else if (msg.content === '!!help') {
         const reply = 'Here are the available commands:\n\n' +
           '!!join - Join the queue\n' +
           '!!leave - Leave the queue\n' +
           '!!who - See who is in the queue\n' +
           '!!gg - Say "Good Game!" and move to the back of the queue\n' +
           '!!clear - Clear the queue (admin only)\n' +
+          '!!skip - Skips the second person in the queue, sending them back by 1 position (admin only)\n' +
           '!!remove [position] - Remove a user from the queue by position (admin only)\n' +
           '!!link - Sends a discord invite link to the Dry Games on Parsec EU Discord server\n' +
           '!!list - Sends a list of everyone currently in the queue straight to your DMs!\n' +
