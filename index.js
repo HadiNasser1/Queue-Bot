@@ -1,4 +1,5 @@
 const { Client, GatewayIntentBits, PermissionsBitField } = require('discord.js');
+const { MongoClient } = require('mongodb');
 
 const client = new Client({ 
   intents: [
@@ -10,12 +11,16 @@ const client = new Client({
 
 const queue = [];
 let matchCreated = false;
+const uri = 'mongodb+srv://hadifouadnasser:KL5nlPLb7WjFPLeu@cluster0.nd4y4y7.mongodb.net/?retryWrites=true&w=majority';
+const dbName = 'Cluster0';
+const collectionName = 'leaderboard';
+
 
 client.on('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
 });
 
-client.on('messageCreate', msg => {
+client.on('messageCreate', async msg => {
     if (msg.content === '!!join') {
       if (!queue.includes(msg.author.id)) {
         queue.push(msg.author.id);
@@ -50,19 +55,52 @@ client.on('messageCreate', msg => {
         msg.reply('The queue is currently empty.');
       }
     } else if (msg.content === '!!gg') {
-        const index = queue.indexOf(msg.author.id);
-        if (index >= 0) {
-          if (index === 0 || index === 1) {
-            queue.splice(index, 1);
-            queue.push(msg.author.id);
-            msg.reply('Good game! You have been sent to the back of the queue.');
-            matchCreated = false;
-          } else {
-            msg.reply('You are not playing in the current match.');
-          }
+      const index = queue.indexOf(msg.author.id);
+      if (index >= 0) {
+        if (index === 0 || index === 1) {
+          const winnerIndex = index === 0 ? 1 : 0;
+          const winnerId = queue[winnerIndex];
+          const loserId = msg.author.id;
+          queue.splice(index, 1);
+          queue.push(loserId);
+          msg.reply(`Good game! You have been sent to the back of the queue.`);
+  
+          // Update leaderboard in MongoDB
+          const client = await MongoClient.connect(uri);
+          const db = client.db(dbName);
+          const collection = db.collection(collectionName);
+  
+          // Increment winner's score by 1
+          await collection.updateOne({ id: winnerId }, { $inc: { score: 1 } }, { upsert: true });
+  
+          // Close the database connection
+          client.close();
         } else {
-          msg.reply('You are not in the queue.');
+          msg.reply('You are not playing in the current match.');
         }
+      } else {
+        msg.reply('You are not in the queue.');
+      }
+      matchCreated = false;
+
+    } else if (msg.content === '!!leaderboard') {
+      // Connect to MongoDB
+      const client = await MongoClient.connect(uri);
+      const db = client.db(dbName);
+      const collection = db.collection(collectionName);
+  
+      // Retrieve leaderboard data
+      const cursor = collection.find().sort({ score: -1 });
+      const leaderboard = await cursor.toArray();
+      const formattedLeaderboard = leaderboard.map((entry, index) => `${index + 1}. <@${entry.id}>: ${entry.score}`);
+  
+      // Send leaderboard to Discord channel
+      const reply = `Here is the current leaderboard:\n\n${formattedLeaderboard.join('\n')}`;
+      msg.channel.send({ content: reply, allowedMentions: { parse: [] }});
+  
+      // Close MongoDB connection
+      client.close();
+      
       } else if (msg.content === '!!clear') {
         if (msg.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
           queue.length = 0;
@@ -113,7 +151,8 @@ client.on('messageCreate', msg => {
           '!!remove [position] - Remove a user from the queue by position (admin only)\n' +
           '!!link - Sends a discord invite link to the Dry Games on Parsec EU Discord server\n' +
           '!!list - Sends a list of everyone currently in the queue straight to your DMs!\n' +
-          '!!donate - Sends a donation link if you would like to support the server! (´｡• ᵕ •｡`) ♡ ';
+          '!!donate - Sends a donation link if you would like to support the server! (´｡• ᵕ •｡`) ♡\n' +
+          `!!leaderboard - Check the current leaderboard.`;
         msg.channel.send(reply);
 
       } else if (msg.content === '!!donate') {
@@ -153,4 +192,4 @@ client.on('messageCreate', msg => {
     }
   });
 
-client.login('token');
+client.login('put token here');
